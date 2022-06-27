@@ -1,0 +1,218 @@
+#!/bin/env bash
+menu="fzf"
+# menu="dmenu -i -l 25"
+source ./config
+mkdir -p "$cachedir"
+trap "rm -rf ${cachedir}" EXIT
+argumen="$*"
+version="1.0.0"
+
+help(){
+echo "BASH Torrent Search a.k.a BiTiEs.
+
+Syntax: bitites [-a|s|m|d|t|j|g]  'Search Query'
+Options:
+-h     Print this Help.
+-a     All.
+-s     Software/Application.
+-m     Movies.
+-d     Audio.
+-t     TV/Series.
+-g     Games.
+-V     Print software version and exit."
+}
+
+
+if [ -z "$*" ]; then
+    echo "1. All"
+    echo "2. Application"
+    echo "3. Movies"
+    echo "4. Audio"
+    echo "5. TV"
+    echo "6. Anime"
+    echo "7. Games"
+    read -rp "Type of File: " filter
+    read -rp "Search Torrent: " query
+else
+while getopts ":h:a:s:m:d:t:j:g:V:" option; do
+   case $option in
+      h) help
+         exit
+	 ;;
+      a) filter=1
+         query=$OPTARG
+	 ;;
+      s) filter=2
+         query=$OPTARG
+	 ;;
+      m) filter=3
+         query=$OPTARG
+	 ;;
+      d) filter=4
+         query=$OPTARG
+	 ;;
+      t) filter=5
+         query=$OPTARG
+	 ;;
+      j) filter=6
+         query=$OPTARG
+	 ;;
+      g) filter=7
+         query=$OPTARG
+	 ;;
+      V) echo "$version"
+	 ;;
+     \?) echo "Error: Invalid option"
+	 help
+         exit
+	 ;;
+   esac
+done
+fi
+
+
+case $filter in
+  1) ftpb=0
+     f1377x=
+     ;;
+
+  2) ftpb=300
+     f1377x=Apps
+     ;;
+
+  3) ftpb=200
+     f1377x=Movies
+     ;;
+
+  4) ftpb=100
+     f1377x=Music
+     ;;
+
+  5) ftpb=200
+     f1377x=TV
+     ;;
+
+  6) ftpb=200
+     f1377x=Anime
+     ;;
+
+  7) ftpb=400
+     f1377x=Games
+     ;;
+
+ \?) echo "I think there's someting wrong with this program. Exitting."
+     sleep 1
+     exit
+     ;;
+esac
+
+
+# echo "Searching $query"
+query="${query// /%20}"
+# query="$(sed 's/ /%20/g' <<<$query)"
+for page in {1..2}
+do
+    curl -s $baseurl/search/"$query"/"$page"/7/"$ftpb" >> "$cachedir"/tmp.html
+done
+for page in {1..3}
+do
+  if [ $f1337x==NULL ]; then
+    # echo All
+    curl -s $base1337x/search/"$query"/"$page"/ >> "$cachedir"/tmp.html
+  else 
+    # echo Filter
+    curl -s $base1337x/category-search/"$query"/"$f1337x"/"$page"/ >> "$cachedir"/tmp.html
+  fi
+done
+
+# Get Titles
+# echo "Getting List"
+# notify-send "Getting List"
+
+grep -o "<a href=*.$baseurl/torrent/.*</a>" "$cachedir"/tmp.html |
+sed 's/<[^>]*>//g' > "$cachedir"/titles.bw
+
+grep -o "<a href=\"/torrent/.*</a>" "$cachedir"/tmp.html |
+sed 's/<[^>]*>//g' >> "$cachedir"/titles.bw
+
+result_count=$(wc -l "$cachedir"/titles.bw | awk '{print $1}')
+if [ "$result_count" -lt 1 ]; then
+    echo "😔 No Result found. Try again 🔴"
+    # notify-send "😔 No Result found. Try again 🔴"
+    exit 0
+fi
+
+# Get Seeders and Leechers
+# echo "Getting Seed and Leech Info"
+# notify-send "Getting Seed and Leech Info"
+grep -o '<td align="right">.*</td>' "$cachedir"/tmp.html |
+sed 's/<[^>]*>//g' | sed 'N;s/\n/ /' > "$cachedir"/seedleech.bw
+
+grep -o '<td class="coll-2 seeds.*</td>\|<td class="coll-3 leeches.*</td>' "$cachedir"/tmp.html |
+sed 's/<[^>]*>//g' | sed 'N;s/\n/ /' >> "$cachedir"/seedleech.bw
+
+# Get Size
+# echo "Getting File size"
+# notify-send "Getting File size"
+grep -o '<font class="detDesc">.*ULed' "$cachedir"/tmp.html |
+sed 's/&nbsp//g' | sed 's/<[^>]*>//g' | sed 's/Uploaded[^>]*Size //g' |
+sed 's/, ULed//g' | tr ';' ' ' > "$cachedir"/size.bw
+
+grep -o '<td class="coll-4 size.*</td>' "$cachedir"/tmp.html |
+sed 's/<span class="seeds">.*<\/span>//g' | sed -e 's/<[^>]*>//g' >> "$cachedir"/size.bw
+
+# Get Links
+# echo "Getting Links"
+# notify-send "Getting Links"
+grep -E "${baseurl}/torrent/" "$cachedir"/tmp.html |
+grep -io '<a href=['"'"'"][^"'"'"']*['"'"'"]' |
+sed -e 's/^<a href=["'"'"']//i' -e 's/["'"'"']$//i' > "$cachedir"/links.bw
+
+grep -E '"/torrent/' "$cachedir"/tmp.html |
+sed -E 's#.*(/torrent/.*)/">.*/#\1#' | sed 's/td>//g' >> "$cachedir"/links.bw
+
+# Cleaning up some data to display
+sed 's/\./ /g; s/\-/ /g' "$cachedir"/titles.bw |
+sed 's/[^A-Za-z0-9 ]//g' | tr -s " " > "$cachedir"/tmp && mv "$cachedir"/tmp "$cachedir"/titles.bw
+
+awk '{print NR " - ["$0"]"}' "$cachedir"/size.bw > "$cachedir"/tmp && mv "$cachedir"/tmp "$cachedir"/size.bw
+awk '{print "[S:"$1 ", L:"$2"]" }' "$cachedir"/seedleech.bw > "$cachedir"/tmp && mv "$cachedir"/tmp "$cachedir"/seedleech.bw
+
+# Getting the line number
+LINE=$(paste -d\   "$cachedir"/size.bw "$cachedir"/seedleech.bw "$cachedir"/titles.bw |
+    $menu |
+    cut -d\- -f1 |
+awk '{$1=$1; print}')
+if [ -z "$LINE" ]; then
+    echo "😔 No Result selected. Exiting... 🔴"
+    # notify-send "😔 No Result selected. Exiting... 🔴" -i "NONE"
+    exit 0
+fi
+# Grab Magnet link
+# echo "🔍 Searching Magnet 🧲"
+# notify-send "🔍 Searching Magnet 🧲"
+
+url=$(head -n "$LINE" "$cachedir"/links.bw | tail -n +"$LINE")
+case $url in
+    /torrent*)
+        fullURL="${base1337x}${url}/"
+        # echo "$fullURL"
+        curl -s "$fullURL" > "$cachedir"/tmp.html
+        magnet=$(grep -Po "magnet:\?xt=urn:btih:[a-zA-Z0-9]*" "$cachedir"/tmp.html | head -n 1)
+        ;;
+    *)
+        # echo "$url"
+        grep -Po "magnet:\?xt=urn:btih:[a-zA-Z0-9]*" "$cachedir"/tmp.html > "$cachedir"/magnet.bw
+        magnet=$(head -n "$LINE" "$cachedir"/magnet.bw | tail -n +"$LINE")
+        ;;
+esac
+
+# Simple notification
+# echo "🎥 Enjoy Watching ☺️ "
+# notify-send "🎥 Enjoy Watching ☺️ "
+if [ -z "$magnet" ];then
+    echo "No Magnet ':('"
+else
+    echo "${magnet}${tracker}"
+    # env LD_LIBRARY_PATH=/usr/local/lib peerflix -l -k "${magnet}${tracker}"
+fi
