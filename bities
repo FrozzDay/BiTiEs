@@ -197,11 +197,11 @@ case $url in
         fullURL="${base1337x}${url}/"
         # echo "$fullURL"
         curl -s "$fullURL" > "$cachedir"/tmp.html
-        magnet=$(grep -Po "magnet:\?xt=urn:btih:[a-zA-Z0-9]*" "$cachedir"/tmp.html | head -n 1)
+        magnet=$(grep -Eo "magnet\:\?[a-zA-Z0-9]{2}=[a-zA-Z0-9]{3}:[a-zA-Z0-9]{4}:[a-zA-Z0-9?%-' '=.+;-]*" "$cachedir"/tmp.html | head -n 1)
         ;;
     *)
         # echo "$url"
-        grep -Po "magnet:\?xt=urn:btih:[a-zA-Z0-9]*" "$cachedir"/tmp.html > "$cachedir"/magnet.bw
+        grep -Eo "magnet\:\?[a-zA-Z0-9]{2}=[a-zA-Z0-9]{3}:[a-zA-Z0-9]{4}:[a-zA-Z0-9?%-' '=.+;-]*" "$cachedir"/tmp.html > "$cachedir"/magnet.bw
         magnet=$(head -n "$LINE" "$cachedir"/magnet.bw | tail -n +"$LINE")
         ;;
 esac
