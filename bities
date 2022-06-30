@@ -115,7 +115,7 @@ do
 done
 for page in {1..3}
 do
-  if [ "$f1337x" == NULL ]; then
+  if [ "$f1337x"==NULL ]; then
     # echo All
     curl -s $base1337x/search/"$query"/"$page"/ >> "$cachedir"/tmp.html
   else 
