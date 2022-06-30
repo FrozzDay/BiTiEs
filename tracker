@@ -1,0 +1,49 @@
+#!/bin/env bash
+# Some code copied from https://gist.github.com/cdown/1163649 
+urlencode() {
+
+    old_lang=$LANG
+    LANG=C
+
+    old_lc_collate=$LC_COLLATE
+    LC_COLLATE=C
+
+    # urlencode <string>
+    local length="${#1}"
+    for (( i = 0; i < length; i++ )); do
+        local c="${1:i:1}"
+        case $c in
+            [a-zA-Z0-9.~_-]) printf %s "$c" ;;
+            *) printf '%%%02X' "'$c" ;;
+        esac
+    done
+
+    LANG=$old_lang
+    LC_COLLATE=$old_lc_collate
+}
+urldecode() {
+    # urldecode <string>
+
+    local url_encoded="${1//+/ }"
+    printf '%b' "${url_encoded//%/\\x}"
+}
+urlencodecurl() {
+if [[ $# != 1 ]]; then
+echo "Usage: $0 string-to-urlencode"
+return 1
+fi
+local data="$(curl -s -o /dev/null -w %{url_effective} --get --data-urlencode "$1" "")"
+if [[ $? == 0 ]]; then
+echo "${data##/?}"
+fi
+return 0
+}
+
+trackerlistgit=$(curl https://ngosang.github.io/trackerslist/trackers_all_ip.txt https://cdn.staticaly.com/gh/XIU2/TrackersListCollection/master/all.txt)
+# This variable doesn't work, 
+# trackerencoder=${${"$(urlencodecurl "$trackerlistgit")"//\%0A/\&tr=}//\&tr=\&tr=/\&tr=}
+aa="$(urlencodecurl "$trackerlistgit")"
+bb="$(sed s'/\%0A/\&tr=/g' <<< "$aa")"
+trackerencoder="$(sed s'/\&tr=\&tr=/\\\&tr=/g' <<< "$bb")"
+# echo $trackerencoder
+sed "s/tracker=\".*\"/tracker=\"\&tr=${trackerencoder}\"/g" config
