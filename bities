@@ -206,12 +206,8 @@ case $url in
         ;;
 esac
 
-# Simple notification
-# echo "🎥 Enjoy Watching ☺️ "
-# notify-send "🎥 Enjoy Watching ☺️ "
 if [ -z "$magnet" ];then
     echo "No Magnet ':('"
 else
     echo "${magnet}${tracker}"
-    # env LD_LIBRARY_PATH=/usr/local/lib peerflix -l -k "${magnet}${tracker}"
 fi
