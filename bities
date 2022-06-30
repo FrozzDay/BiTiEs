@@ -17,6 +17,7 @@ Options:
 -m     Movies.
 -d     Audio.
 -t     TV/Series.
+-j     Anime.
 -g     Games.
 -V     Print software version and exit.'
 }
