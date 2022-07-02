@@ -46,4 +46,4 @@ aa="$(urlencodecurl "$trackerlistgit")"
 bb="$(sed s'/\%0A/\&tr=/g' <<< "$aa")"
 trackerencoder="$(sed s'/\&tr=\&tr=/\\\&tr=/g' <<< "$bb")"
 # echo $trackerencoder
-sed "s/tracker=\".*\"/tracker=\"\&tr=${trackerencoder}\"/g" config
+sed -i "s/tracker=\".*\"/tracker=\"\&tr=${trackerencoder}\"/g" config
