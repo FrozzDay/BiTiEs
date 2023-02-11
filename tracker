@@ -47,3 +47,4 @@ bb="$(sed s'/\%0A/\&tr=/g' <<< "$aa")"
 trackerencoder="$(sed s'/\&tr=\&tr=/\\\&tr=/g' <<< "$bb")"
 # echo $trackerencoder
 sed -i "s/tracker=\".*\"/tracker=\"\&tr=${trackerencoder}\"/g" config
+#627
