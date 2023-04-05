@@ -6,10 +6,12 @@ mkdir -p "$cachedir"
 trap 'rm -rf ${cachedir}' EXIT
 version="1.0.0"
 
-help(){
-echo 'BASH Torrent Search a.k.a BiTiEs.
+help() {
+  cat <<EOF
+BASH Torrent Search a.k.a BiTiEs.
 
-Syntax: bitites [-a|s|m|d|t|j|g]  "Search Query"
+Syntax: bities [-a|s|m|d|t|j|g]  "Search Query"
+
 Options:
 -h     Print this Help.
 -a     All.
@@ -19,110 +21,123 @@ Options:
 -t     TV/Series.
 -j     Anime.
 -g     Games.
--V     Print software version and exit.'
+-V     Print software version and exit.
+EOF
 }
 
-
-if [ -z "$*" ]; then
-    echo "1. All"
-    echo "2. Application"
-    echo "3. Movies"
-    echo "4. Audio"
-    echo "5. TV"
-    echo "6. Anime"
-    echo "7. Games"
-    read -rp "Type of File: " filter
-    read -rp "Search Torrent: " query
+if [ $# -eq 0 ]; then
+  echo "1. All"
+  echo "2. Application"
+  echo "3. Movies"
+  echo "4. Audio"
+  echo "5. TV"
+  echo "6. Anime"
+  echo "7. Games"
+  read -rp "Type of File: " filter
+  read -rp "Search Torrent: " query
 else
-while getopts "ha:s:m:d:t:j:g:V:" option; do
-   case $option in
-      h) help
-         exit
-	 ;;
-      a) filter=1
-         query=$OPTARG
-	 ;;
-      s) filter=2
-         query=$OPTARG
-	 ;;
-      m) filter=3
-         query=$OPTARG
-	 ;;
-      d) filter=4
-         query=$OPTARG
-	 ;;
-      t) filter=5
-         query=$OPTARG
-	 ;;
-      j) filter=6
-         query=$OPTARG
-	 ;;
-      g) filter=7
-         query=$OPTARG
-	 ;;
-      V) echo "$version"
-	 ;;
-     \?) echo "Error: Invalid option"
-	 help
-         exit
-	 ;;
-   esac
-done
+  while getopts "ha:s:m:d:t:j:g:V" option; do
+    case $option in
+      h)
+        help
+        exit
+        ;;
+      a)
+        filter=1
+        query=$OPTARG
+        ;;
+      s)
+        filter=2
+        query=$OPTARG
+        ;;
+      m)
+        filter=3
+        query=$OPTARG
+        ;;
+      d)
+        filter=4
+        query=$OPTARG
+        ;;
+      t)
+        filter=5
+        query=$OPTARG
+        ;;
+      j)
+        filter=6
+        query=$OPTARG
+        ;;
+      g)
+        filter=7
+        query=$OPTARG
+        ;;
+      V)
+        echo "Bities version $version"
+        exit
+        ;;
+      \?)
+        echo "Error: Invalid option"
+        help
+        exit 1
+        ;;
+    esac
+  done
 fi
 
-
 case $filter in
-  1) ftpb=0
-     f1337x=
-     ;;
-
-  2) ftpb=300
-     f1337x=Apps
-     ;;
-
-  3) ftpb=200
-     f1337x=Movies
-     ;;
-
-  4) ftpb=100
-     f1337x=Music
-     ;;
-
-  5) ftpb=200
-     f1337x=TV
-     ;;
-
-  6) ftpb=200
-     f1337x=Anime
-     ;;
-
-  7) ftpb=400
-     f1337x=Games
-     ;;
-
- \?) echo "I think there's someting wrong with this program. Exitting."
-     sleep 1
-     exit
-     ;;
+  1)
+    ftpb=0
+    f1337x=
+    ;;
+  2)
+    ftpb=300
+    f1337x=Apps
+    ;;
+  3)
+    ftpb=200
+    f1337x=Movies
+    ;;
+  4)
+    ftpb=100
+    f1337x=Music
+    ;;
+  5)
+    ftpb=200
+    f1337x=TV
+    ;;
+  6)
+    ftpb=200
+    f1337x=Anime
+    ;;
+  7)
+    ftpb=400
+    f1337x=Games
+    ;;
+  *)
+    echo "Error: Invalid filter"
+    help
+    exit 1
+    ;;
 esac
 
 
 # echo "Searching $query"
-query="${query// /%20}"
+# query="${query// /%20}"
 # query="$(sed 's/ /%20/g' <<<$query)"
-for page in {1..2}
-do
-    curl -s $baseurl/search/"$query"/"$page"/7/"$ftpb" >> "$cachedir"/tmp.html
+query=$(printf '%s' "$query" | sed 's/ /%20/g')
+# Search up to 2 pages on baseurl
+for page in {1..2}; do
+    curl -s "$baseurl/search/$query/$page/7/$ftpb" >> "$cachedir/tmp.html"
 done
-for page in {1..3}
-do
-  if [ "$f1337x"==NULL ]; then
-    # echo All
-    curl -s $base1337x/search/"$query"/"$page"/ >> "$cachedir"/tmp.html
-  else 
-    # echo Filter
-    curl -s $base1337x/category-search/"$query"/"$f1337x"/"$page"/ >> "$cachedir"/tmp.html
-  fi
+
+# Search up to 3 pages on base1337x
+for page in {1..3}; do
+    if [ "$f1337x" = NULL ]; then
+        # Search all categories on base1337x
+        curl -s "$base1337x/search/$query/$page/" >> "$cachedir/tmp.html"
+    else 
+        # Search a specific category on base1337x
+        curl -s "$base1337x/category-search/$query/$f1337x/$page/" >> "$cachedir/tmp.html"
+    fi
 done
 
 # Get Titles
@@ -182,7 +197,7 @@ awk '{print "[S:"$1 ", L:"$2"]" }' "$cachedir"/seedleech.bw > "$cachedir"/tmp &&
 LINE=$(paste -d\   "$cachedir"/size.bw "$cachedir"/seedleech.bw "$cachedir"/titles.bw |
     $menu |
     cut -d- -f1 |
-awk '{$1=$1; print}')
+    awk '{$1=$1; print}')
 if [ -z "$LINE" ]; then
     echo "😔 No Result selected. Exiting... 🔴"
     # notify-send "😔 No Result selected. Exiting... 🔴" -i "NONE"
@@ -198,11 +213,13 @@ case $url in
         fullURL="${base1337x}${url}/"
         # echo "$fullURL"
         curl -s "$fullURL" > "$cachedir"/tmp.html
-        magnet=$(grep -Eo "magnet\:\?[a-zA-Z0-9]{2}=[a-zA-Z0-9]{3}:[a-zA-Z0-9]{4}:[a-zA-Z0-9?%-' '=.+;-]*" "$cachedir"/tmp.html | head -n 1)
+        #magnet=$(grep -Eo '<a[^>]*href="magnet:[^"]*"[^>]*>[^<]*</a>' | grep -Eo 'magnet:[^"]*' "$cachedir"/tmp.html | head -n 1)
+	magnet=$(sed -n 's/.*\(magnet:[^"]*\).*/\1/p' "$cachedir"/tmp.html | head -n 1)
         ;;
     *)
         # echo "$url"
-        grep -Eo "magnet\:\?[a-zA-Z0-9]{2}=[a-zA-Z0-9]{3}:[a-zA-Z0-9]{4}:[a-zA-Z0-9?%-' '=.+;-]*" "$cachedir"/tmp.html > "$cachedir"/magnet.bw
+        #grep -Eo '<a[^>]*href="magnet:[^"]*"[^>]*>[^<]*</a>' | grep -Eo 'magnet:[^"]*' "$cachedir"/tmp.html > "$cachedir"/magnet.bw
+	sed -n 's/.*\(magnet:[^"]*\).*/\1/p' "$cachedir"/tmp.html > "$cachedir"/magnet.bw
         magnet=$(head -n "$LINE" "$cachedir"/magnet.bw | tail -n +"$LINE")
         ;;
 esac
